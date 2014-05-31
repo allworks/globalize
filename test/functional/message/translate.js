@@ -25,6 +25,20 @@ Globalize.loadTranslations({
 
 QUnit.module( "Translate" );
 
+QUnit.test( "should validate parameters", function( assert ) {
+	assert.throws(function() {
+		Globalize.translate();
+	}, Error, "Missing path" );
+
+	assert.throws(function() {
+		Globalize.translate( {} );
+	}, Error, "Invalid path" );
+
+	assert.throws(function() {
+		Globalize.translate( 7 );
+	}, Error, "Invalid path" );
+});
+
 QUnit.test( "should return the loaded translation", function( assert ) {
 	assert.equal( Globalize( "pt" ).translate( "amen" ), "Amém" );
 	assert.equal( Globalize( "zh" ).translate( "amen" ), "阿门" );

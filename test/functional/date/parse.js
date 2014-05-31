@@ -24,6 +24,23 @@ function assertParseDate( assert, input, options, output ) {
 	assert.deepEqual( Globalize.parseDate( input, options ), output, JSON.stringify( options ) );
 }
 
+QUnit.test( "should validate parameters", function( assert ) {
+	// Missing value
+	assert.throws(function() {
+		Globalize.parseDate();
+	}, Error );
+
+	// Invalid value
+	assert.throws(function() {
+		Globalize.parseDate( 7 );
+	}, Error );
+
+	// Invalid pattern
+	assert.throws(function() {
+		Globalize.parseDate( "15 Wed", [ 7 ] );
+	}, Error );
+});
+
 QUnit.test( "should parse skeleton", function( assert ) {
 	date = new Date();
 	date.setDate( 15 );

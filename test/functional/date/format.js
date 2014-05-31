@@ -19,6 +19,33 @@ Globalize.locale( "en" );
 
 QUnit.module( "Datetime Format" );
 
+QUnit.test( "should validate parameters", function( assert ) {
+	// Missing value
+	assert.throws(function() {
+		Globalize.formatDate();
+	}, Error );
+
+	// Invalid value
+	assert.throws(function() {
+		Globalize.formatDate( "invalid" );
+	}, Error );
+
+	// Invalid value
+	assert.throws(function() {
+		Globalize.formatDate( 7 );
+	}, Error );
+
+	// Missing pattern
+	assert.throws(function() {
+		Globalize.formatDate( date );
+	}, Error );
+
+	// Invalid pattern
+	assert.throws(function() {
+		Globalize.formatDate( date, 7 );
+	}, Error );
+});
+
 QUnit.test( "should format skeleton", function( assert ) {
 	assert.equal( Globalize.formatDate( date, { skeleton: "d" } ), "15" );
 	assert.equal( Globalize.formatDate( date, { skeleton: "Ed" } ), "15 Wed" );

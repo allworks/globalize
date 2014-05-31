@@ -30,3 +30,7 @@
 		factory( root.Cldr, root.Globalize );
 	}
 }(this, function( Cldr, Globalize ) {
+
+var isPlainObject = Globalize._isPlainObject,
+	validatePresence = Globalize._validatePresence,
+	validateType = Globalize._validateType;

@@ -1,7 +1,13 @@
 define([
 	"cldr",
-	"./util/always-cldr"
-], function( Cldr, alwaysCldr ) {
+	"./common/validate-presence",
+	"./common/validate-type",
+	"./common/validate-type/locale",
+	"./common/validate-type/plain-object",
+	"./util/always-cldr",
+	"./util/is-plain-object",
+	"./util/object/keys"
+], function( Cldr, validatePresence, validateType, validateTypeLocale, validateTypePlainObject, alwaysCldr, isPlainObject, objectKeys ) {
 
 /**
  * [new] Globalize( locale|cldr )
@@ -17,9 +23,8 @@ function Globalize( locale ) {
 		return new Globalize( locale );
 	}
 
-	if ( !locale ) {
-		throw new Error( "Missing locale" );
-	}
+	validatePresence( locale, "locale" );
+	validateTypeLocale( locale, "locale" );
 
 	this.cldr = alwaysCldr( locale );
 }
@@ -33,6 +38,9 @@ function Globalize( locale ) {
  * Somewhat equivalent to previous Globalize.addCultureInfo(...).
  */
 Globalize.load = function( json ) {
+	validatePresence( json, "json" );
+	validateTypePlainObject( json, "json" );
+
 	Cldr.load( json );
 };
 
@@ -48,11 +56,22 @@ Globalize.load = function( json ) {
  * Return the default Cldr instance.
  */
 Globalize.locale = function( locale ) {
+	validateTypeLocale( locale, "locale" );
+
 	if ( arguments.length ) {
 		this.cldr = alwaysCldr( locale );
 	}
 	return this.cldr;
 };
+
+/**
+ * Optimization to avoid duplicating some internal functions across modules.
+ */
+Globalize._isPlainObject = isPlainObject;
+Globalize._objectKeys = objectKeys;
+Globalize._validatePresence = validatePresence;
+Globalize._validateType = validateType;
+Globalize._validateTypePlainObject = validateTypePlainObject;
 
 return Globalize;
 

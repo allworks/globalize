@@ -17,6 +17,20 @@ Globalize.locale( "en" );
 
 QUnit.module( "Number Format" );
 
+QUnit.test( "should validate parameters", function( assert ) {
+	assert.throws(function() {
+		Globalize.formatNumber();
+	}, Error, "Missing value" );
+
+	assert.throws(function() {
+		Globalize.formatNumber( "invalid" );
+	}, Error, "Invalid value" );
+
+	assert.throws(function() {
+		Globalize.formatNumber( 7, [] );
+	}, Error, "Invalid attributes" );
+});
+
 QUnit.test( "should format decimal style", function( assert ) {
 	assert.equal( Globalize.formatNumber( pi ), "3.142" );
 	assert.equal( Globalize( "es" ).formatNumber( pi ), "3,142" );
