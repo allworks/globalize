@@ -1,7 +1,7 @@
 require.config({
 	paths: {
 		cldr: "../external/cldrjs/dist/cldr",
-		fixtures: "./fixtures",
+		"cldr-data": "../external/cldr-data",
 		globalize: "../dist/globalize",
 		json: "../external/requirejs-plugins/src/json",
 		src: "../src",
@@ -11,16 +11,27 @@ require.config({
 
 require([
 
-	/* date */
-	"./functional/date/format",
-	"./functional/date/parse",
+	// core
+	"./functional/core",
 
-	/* message */
+	// date
+	"./functional/date/date-formatter",
+	"./functional/date/date-parser",
+	"./functional/date/format-date",
+	"./functional/date/parse-date",
+
+	// message
 	"./functional/message/translate",
 
-	/* number */
-	"./functional/number/format",
-	"./functional/number/parse"
+	// number
+	"./functional/number/number-formatter",
+	"./functional/number/number-parser",
+	"./functional/number/format-number",
+	"./functional/number/parse-number",
+
+	// plural
+	"./functional/plural/format-plural",
+	"./functional/plural/plural"
 
 ], function() {
 	QUnit.start();

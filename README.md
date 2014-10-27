@@ -1,8 +1,8 @@
 # Globalize
 
-[![Build Status](https://secure.travis-ci.org/jquery/globalize.png)](http://travis-ci.org/jquery/globalize)
-[![devDependency Status](https://david-dm.org/jquery/globalize/status.png)](https://david-dm.org/jquery/globalize#info=dependencies)
-[![devDependency Status](https://david-dm.org/jquery/globalize/dev-status.png)](https://david-dm.org/jquery/globalize#info=devDependencies)
+[![Build Status](https://secure.travis-ci.org/jquery/globalize.svg?branch=master)](http://travis-ci.org/jquery/globalize)
+[![devDependency Status](https://david-dm.org/jquery/globalize/status.svg)](https://david-dm.org/jquery/globalize#info=dependencies)
+[![devDependency Status](https://david-dm.org/jquery/globalize/dev-status.svg)](https://david-dm.org/jquery/globalize#info=devDependencies)
 
 A JavaScript library for internationalization and localization that leverage the
 official [Unicode CLDR](http://cldr.unicode.org/) JSON data. The library works both for the browser and as a
@@ -26,7 +26,9 @@ Node.js module.
   - [Date module](#date_module)
   - [Message module](#message_module)
   - [Number module](#number_module)
+  - [Plural module](#plural_module)
   - more to come...
+- [Error reference](#error)
 - [Development](#development)
   - [File structure](#file_structure)
   - [Source files](#source_files)
@@ -92,19 +94,44 @@ information on its usage.
 <a name="modules"></a>
 ### Pick the modules you need
 
-| File | Minified size | Summary |
+| File | Minified + gzipped size | Summary |
 |---|--:|---|
-| globalize.js | 0.4KB | [Core library](#core) |
-| globalize/date.js | +9.2KB | [Date module](#date_module) provides date formatting and parsing |
-| globalize/message.js | +0.7KB | [Message module](#message_module) provides message translation |
-| globalize/number.js | +3.7KB | [Number module](#number_module) provides number formatting and parsing |
+| globalize.js | 1.1KB | [Core library](#core) |
+| globalize/date.js | +3.8KB | [Date module](#date_module) provides date formatting and parsing |
+| globalize/message.js | +0.5KB | [Message module](#message_module) provides message translation |
+| globalize/number.js | +2.6KB | [Number module](#number_module) provides number formatting and parsing |
+| globalize/plural.js | +2.0KB | [Plural module](#plural_module) provides pluralization support |
 <!--- By updating this table, also update its clone in #usage -->
 
 <a name="browser_support"></a>
 ### Browser Support
 
-We officially support http://jquery.com/browser-support/. If you find any bugs,
-please just [let us know](https://github.com/jquery/globalize/issues).
+Globalize 1.x supports the following browsers:
+
+- Chrome: (Current - 1) or Current
+- Firefox: (Current - 1) or Current
+- Safari: 5.1+
+- Opera: 12.1x, (Current - 1) or Current
+- IE 8 (needs ES5 polyfill), IE9+
+
+*(Current - 1)* or *Current* denotes that we support the current stable version
+of the browser and the version that preceded it. For example, if the current
+version of a browser is 24.x, we support the 24.x and 23.x versions.
+
+*IE 8* is supported, but it depends on the polyfill of the ES5
+methods below, for which we suggest using
+[es5-shim](https://github.com/es-shims/es5-shim). Alternatives or more
+information can be found at
+[Modernizr's polyfills list](https://github.com/Modernizr/Modernizr/wiki/HTML5-Cross-Browser-Polyfills#ecmascript-5).
+
+- Array.isArray()
+- Array.prototype.every()
+- Array.prototype.forEach()
+- Array.prototype.indexOf()
+- Array.prototype.isArray()
+- Array.prototype.map()
+- Array.prototype.some()
+- Object.keys()
 
 
 <a name="getting_started"></a>
@@ -140,8 +167,9 @@ requirements. See table below.
 | Module | Required CLDR JSON files |
 |---|---|
 | Core module | cldr/supplemental/likelySubtags.json |
+| Date module | cldr/main/`locale`/ca-gregorian.json<br>cldr/main/`locale`/timeZoneNames.json<br>cldr/supplemental/timeData.json<br>cldr/supplemental/weekData.json |
 | Number module | cldr/main/`locale`/numbers.json |
-| Date module | cldr/main/`locale`/ca-gregorian.json<br>cldr/supplemental/timeData.json<br>cldr/supplemental/weekData.json |
+| Plural module | cldr/supplemental/plurals.json |
 
 *(b) How am I supposed to get and load CLDR content?*
 
@@ -182,9 +210,9 @@ functionalities, etc.
 
 An example is worth a thousand words. Check out our Hello World demo (available
 to you in different flavors):
-- [Hello World (AMD + bower)](doc/hello-world/amd-bower/).
-- [Hello World (Node.js + npm)](doc/hello-world/node-npm/).
-- [Hello World (plain JavaScript)](doc/hello-world/plain-javascript/).
+- [Hello World (AMD + bower)](examples/amd-bower/).
+- [Hello World (Node.js + npm)](examples/node-npm/).
+- [Hello World (plain JavaScript)](examples/plain-javascript/).
 
 
 <a name="api"></a>
@@ -193,7 +221,7 @@ to you in different flavors):
 <a name="core"></a>
 ### Core module
 
-- **`Globalize.load( cldrJSONData )`**
+- **`Globalize.load( cldrJSONData, ... )`**
 
  This method allows you to load CLDR JSON locale data. `Globalize.load()` is a
  proxy to `Cldr.load()`.
@@ -215,19 +243,30 @@ to you in different flavors):
 <a name="date_module"></a>
 ### Date module
 
-- **`.formatDate( value, format )`**
+- **`.dateFormatter( pattern )`**
 
-  Format a date `value` according to the given `format`.
+  Return a function that formats a date according to the given `pattern`.
 
- [Read more...](doc/api/date/format.md)
+ [Read more...](doc/api/date/date-formatter.md)
 
-- **`.parseDate( value [, formats] )`**
+- **`.dateParser( pattern )`**
 
-  Parse a string representing a date into a JavaScript Date object, taking into
-  account the given possible formats (or the given locale's set of preset
-  formats if not provided).
+  Return a function that parses a string date according to the given `pattern`.
 
- [Read more...](doc/api/date/parse.md)
+ [Read more...](doc/api/date/date-parser.md)
+
+- **`.formatDate( value, pattern )`**
+
+  Format a date `value` according to the given `pattern`.
+
+ [Read more...](doc/api/date/format-date.md)
+
+- **`.parseDate( value, pattern )`**
+
+  Parse a string representing a date into a JavaScript Date object according to
+  the given pattern.
+
+ [Read more...](doc/api/date/parse-date.md)
 
 <a name="message_module"></a>
 ### Message module
@@ -247,18 +286,110 @@ to you in different flavors):
 <a name="number_module"></a>
 ### Number module
 
-- **`.formatNumber( value [, attributes] )`**
+- **`.numberFormatter( [options] )`**
 
-  Format a number according to the given attributes.
+  Return a function that formats a number according to the given options or locale's defaults.
 
- [Read more...](doc/api/number/format.md)
+ [Read more...](doc/api/number/number-formatter.md)
 
-- **`.parseNumber( value )`**
+- **`.numberParser( [options] )`**
 
-  Parse a string representing a number taking into account the localized
-  symbols. If value is invalid, `NaN` is returned.
+  Return a function that parses a string representing a number according to the given options or
+  locale's defaults.
 
- [Read more...](doc/api/number/parse.md)
+ [Read more...](doc/api/number/number-parser.md)
+
+- **`.formatNumber( value [, options] )`**
+
+  Format a number according to the given options or locale's defaults.
+
+ [Read more...](doc/api/number/format-number.md)
+
+- **`.parseNumber( value [, options] )`**
+
+  Parse a string representing a number according to the given options or locale's defaults. If value is invalid, `NaN` is returned.
+
+ [Read more...](doc/api/number/parse-number.md)
+
+<a name="plural_module"></a>
+### Plural module
+
+- **`Globalize.formatPlural( value, messageData [, formatValue ] )`**
+
+ Return the appropriate message based on value's plural group: `zero`, `one`,
+ `two`, `few`, `many`, or `other`.
+
+ [Read more...](doc/api/plural/format-plural.md)
+
+- **`Globalize.plural( value )`**
+
+ Return the value's corresponding plural group: `zero`, `one`, `two`, `few`, `many`, or `other`.
+
+ [Read more...](doc/api/plural/plural.md)
+
+
+<a name="error"></a>
+## Error reference
+
+### CLDR Errors
+
+- **`E_INVALID_CLDR`**
+
+ Thrown when a CLDR item has an invalid or unexpected value.
+
+ [Read more...](doc/error/e-invalid-cldr.md)
+
+- **`E_MISSING_CLDR`**
+
+ Thrown when any required CLDR item is NOT found.
+
+ [Read more...](doc/error/e-missing-cldr.md)
+
+### Parameter Errors
+
+- **`E_INVALID_PAR_TYPE`**
+
+ Thrown when a parameter has an invalid type on any static or instance methods.
+
+ [Read more...](doc/error/e-invalid-par-type.md)
+
+- **`E_INVALID_PAR_VALUE`**
+
+ Thrown for certain parameters when the type is correct, but the value is
+ invalid.
+
+ [Read more...](doc/error/e-invalid-par-value.md)
+
+- **`E_MISSING_PARAMETER`**
+
+ Thrown when a required parameter is missing on any static or instance methods.
+
+ [Read more...](doc/error/e-missing-parameter.md)
+
+- **`E_PAR_MISSING_KEY`**
+
+ Thrown when a parameter misses a required key.
+
+ [Read more...](doc/error/e-par-missing-key.md)
+
+- **`E_PAR_OUT_OF_RANGE`**
+
+ Thrown when a parameter is not within a valid range of values.
+
+ [Read more...](doc/error/e-par-out-of-range.md)
+
+### Other Errors
+
+- **`E_DEFAULT_LOCALE_NOT_DEFINED`**
+
+ Thrown when any static method, eg. `Globalize.formatNumber()` is used prior to
+setting the Global locale with `Globalize.locale( <locale> )`.
+ [Read more...](doc/error/e-default-locale-not-defined.md)
+
+- **`E_UNSUPPORTED`**
+
+ Thrown for unsupported features, eg. to format unsupported date patterns.
+ [Read more...](doc/error/e-unsupported.md)
 
 
 <a name="development"></a>
@@ -272,7 +403,7 @@ to you in different flavors):
 ├── dist/ (consumable files, the built files)
 ├── external/ (external dependencies, eg. cldr.js, QUnit, RequireJS)
 ├── Gruntfile.js (Grunt tasks)
-├── LICENSE (license file)
+├── LICENSE.txt (license file)
 ├── package.json (metadata file)
 ├── README.md (doc file)
 ├── src/ (source code)
@@ -282,6 +413,10 @@ to you in different flavors):
 │   ├── date/ (date source code)
 │   ├── date.js (date module)
 │   ├── message.js (message module)
+│   ├── number.js (number module)
+│   ├── number/ (number source code)
+│   ├── plural.js (plural module)
+│   ├── plural/ (plural source code)
 │   └── util/ (basic JavaScript helpers polyfills, eg array.map)
 └── test/ (unit and functional test files)
     ├── fixtures/ (CLDR fixture data)
@@ -300,50 +435,54 @@ The source files are as granular as possible. When combined to generate the
 build file, all the excessive/overhead wrappers are cut off. It's following
 the same build model of jQuery and Modernizr.
 
-Core, and all modules' public APIs are located in the `src/` directory. For
-example: `core.js`, `date.js`, and `message.js`.
+Core, and all modules' public APIs are located in the `src/` directory, ie.
+`core.js`, `date.js`, `message.js`, `number.js`, and `plural.js`.
 
-<a name="build"></a>
-### Build
+<a name="dev_dependencies"></a>
+### Install development external dependencies
 
 Install Grunt and external dependencies. First, install the
 [grunt-cli](http://gruntjs.com/getting-started#installing-the-cli) and
-[bower](http://bower.io/) packages if you haven't before. These should be installed
-globally (like this: `npm install -g grunt-cli bower`). Then:
+[bower](http://bower.io/) packages if you haven't before. These should be
+installed globally (like this: `npm install -g grunt-cli bower`). Then:
 
 ```bash
 npm install && bower install
 ```
 
-Build distribution files.
-```bash
-grunt
-```
-
 <a name="tests"></a>
 ### Tests
 
-Tests can be run either in the browser or using Node.js (via Grunt).
+Tests can be run either in the browser or using Node.js (via Grunt) after having
+installed the external development dependencies (for more details, see above).
 
 ***Unit tests***
 
-To run the unit tests, run `grunt test:unit`, or open
-`file:///.../globalize/test/unit.html` in a browser. It tests the very specific functionality
-of each function (sometimes internal/private).
+To run the unit tests, run `grunt test:unit`, or run `grunt connect:keepalive`
+and open `http://localhost:9001/test/unit.html` in a browser (or
+`http://localhost:9001/test/unit-es5-shim.html` for IE8). It tests the very
+specific functionality of each function (sometimes internal/private).
 
 The goal of the unit tests is to make it easy to spot bugs, easy to debug.
 
 ***Functional tests***
 
 To run the functional tests, create the dist files by running `grunt`. Then, run
-`grunt test:functional`, or open
-`file:///.../globalize/test/functional.html` in a browser. Note that `grunt` will
-automatically run unit and functional tests for you to ensure the built files
-are safe.
+`grunt test:functional`, or open `http://localhost:9001/test/functional.html` in
+a browser (or `http://localhost:9001/test/functional-es5-shim.html` for IE8).
+Note that `grunt` will automatically run unit and functional tests for you to
+ensure the built files are safe.
 
-The goal of the functional tests is to ensure that everything works as expected when it is combined.
+The goal of the functional tests is to ensure that everything works as expected
+when it is combined.
 
+<a name="build"></a>
+### Build
 
-## License
+Build the distribution files after having installed the external development
+dependencies (for more details, see above).
 
-MIT © [jQuery Foundation](http://jquery.com/) and other contributors.
+```bash
+grunt
+```
+

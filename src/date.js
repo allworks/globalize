@@ -1,14 +1,110 @@
 define([
 	"cldr",
+	"./common/validate/cldr",
+	"./common/validate/default-locale",
+	"./common/validate/parameter-presence",
+	"./common/validate/parameter-type",
+	"./common/validate/parameter-type/date",
+	"./common/validate/parameter-type/date-pattern",
+	"./common/validate/parameter-type/string",
 	"./core",
-	"./date/all-presets",
 	"./date/expand-pattern",
 	"./date/format",
+	"./date/format-properties",
 	"./date/parse",
-	"./util/always-array",
-	"./util/array/some",
+	"./date/parse-properties",
+	"./date/tokenizer",
+	"./date/tokenizer-properties",
+	"cldr/event",
 	"cldr/supplemental"
-], function( Cldr, Globalize, dateAllPresets, dateExpandPattern, dateFormat, dateParse, alwaysArray, arraySome ) {
+], function( Cldr, validateCldr, validateDefaultLocale, validateParameterPresence,
+	validateParameterTypeDataType, validateParameterTypeDate, validateParameterTypeDatePattern,
+	validateParameterTypeString, Globalize, dateExpandPattern, dateFormat, dateFormatProperties,
+	dateParse, dateParseProperties, dateTokenizer, dateTokenizerProperties ) {
+
+function validateRequiredCldr( path, value ) {
+	validateCldr( path, value, {
+		skip: [
+			/dates\/calendars\/gregorian\/days\/.*\/short/,
+			/supplemental\/timeData\/(?!001)/,
+			/supplemental\/weekData\/(?!001)/
+		]
+	});
+}
+
+/**
+ * .dateFormatter( pattern )
+ *
+ * @pattern [String or Object] see date/expand_pattern for more info.
+ *
+ * Return a date formatter function (of the form below) according to the given pattern and the
+ * default/instance locale.
+ *
+ * fn( value )
+ *
+ * @value [Date]
+ *
+ * Return a function that formats a date according to the given `format` and the default/instance
+ * locale.
+ */
+Globalize.dateFormatter =
+Globalize.prototype.dateFormatter = function( pattern ) {
+	var cldr, properties;
+
+	validateParameterPresence( pattern, "pattern" );
+	validateParameterTypeDatePattern( pattern, "pattern" );
+
+	cldr = this.cldr;
+
+	validateDefaultLocale( cldr );
+
+	cldr.on( "get", validateRequiredCldr );
+	pattern = dateExpandPattern( pattern, cldr );
+	properties = dateFormatProperties( pattern, cldr );
+	cldr.off( "get", validateRequiredCldr );
+
+	return function( value ) {
+		validateParameterPresence( value, "value" );
+		validateParameterTypeDate( value, "value" );
+		return dateFormat( value, properties );
+	};
+};
+
+/**
+ * .dateParser( pattern )
+ *
+ * @pattern [String or Object] see date/expand_pattern for more info.
+ *
+ * Return a function that parses a string date according to the given `formats` and the
+ * default/instance locale.
+ */
+Globalize.dateParser =
+Globalize.prototype.dateParser = function( pattern ) {
+	var cldr, parseProperties, tokenizerProperties;
+
+	validateParameterPresence( pattern, "pattern" );
+	validateParameterTypeDatePattern( pattern, "pattern" );
+
+	cldr = this.cldr;
+
+	validateDefaultLocale( cldr );
+
+	cldr.on( "get", validateRequiredCldr );
+	pattern = dateExpandPattern( pattern, cldr );
+	tokenizerProperties = dateTokenizerProperties( pattern, cldr );
+	parseProperties = dateParseProperties( cldr );
+	cldr.off( "get", validateRequiredCldr );
+
+	return function( value ) {
+		var tokens;
+
+		validateParameterPresence( value, "value" );
+		validateParameterTypeString( value, "value" );
+
+		tokens = dateTokenizer( value, tokenizerProperties );
+		return dateParse( value, tokens, parseProperties ) || null;
+	};
+};
 
 /**
  * .formatDate( value, pattern )
@@ -21,53 +117,27 @@ define([
  */
 Globalize.formatDate =
 Globalize.prototype.formatDate = function( value, pattern ) {
-	var cldr;
+	validateParameterPresence( value, "value" );
+	validateParameterTypeDate( value, "value" );
 
-	if ( !( value instanceof Date ) ) {
-		throw new Error( "Value is not date" );
-	}
-
-	if ( !pattern ) {
-		throw new Error( "Missing pattern" );
-	}
-
-	cldr = this.cldr;
-	pattern = dateExpandPattern( pattern, cldr );
-	return dateFormat( value, pattern, cldr );
+	return this.dateFormatter( pattern )( value );
 };
 
 /**
- * .parseDate( value, patterns )
+ * .parseDate( value, pattern )
  *
  * @value [String]
  *
- * @patterns [Array] Optional. See date/expand_pattern for more info about each pattern. Defaults to the list of all presets defined in the locale (see date/all_presets for more info).
+ * @pattern [String or Object] see date/expand_pattern for more info.
  *
  * Return a Date instance or null.
  */
 Globalize.parseDate =
-Globalize.prototype.parseDate = function( value, patterns ) {
-	var cldr, date;
+Globalize.prototype.parseDate = function( value, pattern ) {
+	validateParameterPresence( value, "value" );
+	validateParameterTypeString( value, "value" );
 
-	if ( typeof value !== "string" ) {
-		throw new Error( "invalid value (" + value + "), string expected" );
-	}
-
-	cldr = this.cldr;
-
-	if ( !patterns ) {
-		patterns = dateAllPresets( cldr );
-	} else {
-		patterns = alwaysArray( patterns );
-	}
-
-	arraySome( patterns, function( pattern ) {
-		pattern = dateExpandPattern( pattern, cldr );
-		date = dateParse( value, pattern, cldr );
-		return !!date;
-	});
-
-	return date || null;
+	return this.dateParser( pattern )( value );
 };
 
 return Globalize;

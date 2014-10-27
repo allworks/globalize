@@ -1,29 +1,45 @@
 define([
 	"globalize",
-	"json!fixtures/cldr/supplemental/likelySubtags.json",
+	"json!cldr-data/supplemental/likelySubtags.json",
+	"../../util",
 	"cldr/unresolved",
 	"globalize/message"
-], function( Globalize, likelySubtags ) {
+], function( Globalize, likelySubtags, util ) {
 
-Globalize.load( likelySubtags );
-Globalize.loadTranslations({
-	root: {
-		amen: "Amen"
+QUnit.module( ".translate( path )", {
+	setup: function() {
+		Globalize.load( likelySubtags );
+		Globalize.loadTranslations({
+			root: {
+				amen: "Amen"
+			},
+			pt: {
+				amen: "Amém"
+			},
+			zh: {
+				amen: "阿门"
+			},
+			en: {
+				greetings: {
+					hello: "Hello"
+				}
+			}
+		});
 	},
-	pt: {
-		amen: "Amém"
-	},
-	zh: {
-		amen: "阿门"
-	},
-	en: {
-		greetings: {
-			hello: "Hello"
-		}
-	}
+	teardown: util.resetCldrContent
 });
 
-QUnit.module( "Translate" );
+QUnit.test( "should validate parameters", function( assert ) {
+	util.assertParameterPresence( assert, "path", function() {
+		Globalize.translate();
+	});
+
+	util.assertPathParameter( assert, "path", function( invalidValue ) {
+		return function() {
+			Globalize.translate( invalidValue );
+		};
+	});
+});
 
 QUnit.test( "should return the loaded translation", function( assert ) {
 	assert.equal( Globalize( "pt" ).translate( "amen" ), "Amém" );

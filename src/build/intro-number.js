@@ -3,7 +3,7 @@
  *
  * http://github.com/jquery/globalize
  *
- * Copyright 2005, 2014 jQuery Foundation, Inc. and other contributors
+ * Copyright 2010, 2014 jQuery Foundation, Inc. and other contributors
  * Released under the MIT license
  * http://jquery.org/license
  *
@@ -17,7 +17,8 @@
 		// AMD
 		define([
 			"cldr",
-			"../globalize"
+			"../globalize",
+			"cldr/event"
 		], factory );
 	} else if ( typeof exports === "object" ) {
 
@@ -29,3 +30,11 @@
 		factory( root.Cldr, root.Globalize );
 	}
 }(this, function( Cldr, Globalize ) {
+
+var createError = Globalize._createError,
+	validateCldr = Globalize._validateCldr,
+	validateDefaultLocale = Globalize._validateDefaultLocale,
+	validateParameterPresence = Globalize._validateParameterPresence,
+	validateParameterRange = Globalize._validateParameterRange,
+	validateParameterType = Globalize._validateParameterType,
+	validateParameterTypePlainObject = Globalize._validateParameterTypePlainObject;

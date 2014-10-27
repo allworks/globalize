@@ -1,7 +1,28 @@
 define([
 	"cldr",
-	"./util/always-cldr"
-], function( Cldr, alwaysCldr ) {
+	"./common/create-error",
+	"./common/format-message",
+	"./common/validate",
+	"./common/validate/cldr",
+	"./common/validate/default-locale",
+	"./common/validate/parameter-presence",
+	"./common/validate/parameter-range",
+	"./common/validate/parameter-type",
+	"./common/validate/parameter-type/locale",
+	"./common/validate/parameter-type/plain-object",
+	"./util/always-array",
+	"./util/always-cldr",
+	"./util/is-plain-object",
+	"cldr/event"
+], function( Cldr, createError, formatMessage, validate, validateCldr, validateDefaultLocale,
+	validateParameterPresence, validateParameterRange, validateParameterType,
+	validateParameterTypeLocale, validateParameterTypePlainObject, alwaysArray, alwaysCldr,
+	isPlainObject ) {
+
+function validateLikelySubtags( cldr ) {
+	cldr.once( "get", validateCldr );
+	cldr.get( "supplemental/likelySubtags" );
+}
 
 /**
  * [new] Globalize( locale|cldr )
@@ -17,23 +38,25 @@ function Globalize( locale ) {
 		return new Globalize( locale );
 	}
 
-	if ( !locale ) {
-		throw new Error( "Missing locale" );
-	}
+	validateParameterPresence( locale, "locale" );
+	validateParameterTypeLocale( locale, "locale" );
 
 	this.cldr = alwaysCldr( locale );
+
+	validateLikelySubtags( this.cldr );
 }
 
 /**
- * Globalize.load( json )
+ * Globalize.load( json, ... )
  *
  * @json [JSON]
  *
  * Load resolved or unresolved cldr data.
  * Somewhat equivalent to previous Globalize.addCultureInfo(...).
  */
-Globalize.load = function( json ) {
-	Cldr.load( json );
+Globalize.load = function() {
+	// validations are delegated to Cldr.load().
+	Cldr.load.apply( Cldr, arguments );
 };
 
 /**
@@ -48,11 +71,29 @@ Globalize.load = function( json ) {
  * Return the default Cldr instance.
  */
 Globalize.locale = function( locale ) {
+	validateParameterTypeLocale( locale, "locale" );
+
 	if ( arguments.length ) {
 		this.cldr = alwaysCldr( locale );
+		validateLikelySubtags( this.cldr );
 	}
 	return this.cldr;
 };
+
+/**
+ * Optimization to avoid duplicating some internal functions across modules.
+ */
+Globalize._alwaysArray = alwaysArray;
+Globalize._createError = createError;
+Globalize._formatMessage = formatMessage;
+Globalize._isPlainObject = isPlainObject;
+Globalize._validate = validate;
+Globalize._validateCldr = validateCldr;
+Globalize._validateDefaultLocale = validateDefaultLocale;
+Globalize._validateParameterPresence = validateParameterPresence;
+Globalize._validateParameterRange = validateParameterRange;
+Globalize._validateParameterTypePlainObject = validateParameterTypePlainObject;
+Globalize._validateParameterType = validateParameterType;
 
 return Globalize;
 

@@ -1,10 +1,13 @@
 define([
-	"./pattern-re",
-	"../util/array/every"
-], function( datePatternRe, arrayEvery ) {
+	"./pattern-re"
+], function( datePatternRe ) {
 
 /**
- * tokenizer( value, pattern )
+ * tokenizer( value, pattern, properties )
+ *
+ * @value [String] string date.
+ *
+ * @properties [Object] output returned by date/tokenizer-properties.
  *
  * Returns an Array of tokens, eg. value "5 o'clock PM", pattern "h 'o''clock' a":
  * [{
@@ -25,18 +28,66 @@ define([
  *   value: "pm"
  * }]
  *
- * OBS: lexeme's are always String and may return invalid ranges depending of the token type. Eg. "99" for month number.
+ * OBS: lexeme's are always String and may return invalid ranges depending of the token type.
+ * Eg. "99" for month number.
  *
  * Return an empty Array when not successfully parsed.
  */
-return function( value, pattern, cldr ) {
+return function( value, properties ) {
 	var valid,
 		tokens = [],
 		widths = [ "abbreviated", "wide", "narrow" ];
 
-	valid = arrayEvery( pattern.match( datePatternRe ), function( current ) {
+	valid = properties.pattern.match( datePatternRe ).every(function( current ) {
 		var chr, length, tokenRe,
 			token = {};
+
+		function hourFormatParse( tokenRe ) {
+			var aux = value.match( tokenRe );
+
+			if ( !aux ) {
+				return false;
+			}
+
+			// hourFormat containing H only, e.g., `+H;-H`
+			if ( aux.length < 4 ) {
+				token.value = ( aux[ 1 ] ? -aux[ 1 ] : +aux[ 2 ] ) * 60;
+
+			// hourFormat containing H and m, e.g., `+HHmm;-HHmm`
+			} else {
+				token.value = ( aux[ 1 ] ? -aux[ 1 ] : +aux[ 3 ] ) * 60 +
+					( aux[ 1 ] ? -aux[ 2 ] : +aux[ 4 ] );
+			}
+
+			return true;
+		}
+
+		// Transform:
+		// - "+H;-H" -> /\+(\d\d?)|-(\d\d?)/
+		// - "+HH;-HH" -> /\+(\d\d)|-(\d\d)/
+		// - "+HHmm;-HHmm" -> /\+(\d\d)(\d\d)|-(\d\d)(\d\d)/
+		// - "+HH:mm;-HH:mm" -> /\+(\d\d):(\d\d)|-(\d\d):(\d\d)/
+		//
+		// If gmtFormat is GMT{0}, the regexp must fill {0} in each side, e.g.:
+		// - "+H;-H" -> /GMT\+(\d\d?)|GMT-(\d\d?)/
+		function hourFormatRe( hourFormat, gmtFormat ) {
+			var re;
+
+			if ( !gmtFormat ) {
+				gmtFormat = "{0}";
+			}
+
+			re = hourFormat
+				.replace( "+", "\\+" )
+				.replace( /HH|mm/g, "(\\d\\d)" )
+				.replace( /H|m/g, "(\\d\\d?)" );
+
+			re = re.split( ";" ).map(function( part ) {
+				return gmtFormat.replace( "{0}", part );
+			}).join( "|" );
+
+			return new RegExp( re );
+		}
 
 		function oneDigitIfLengthOne() {
 			if ( length === 1 ) {
@@ -60,7 +111,8 @@ return function( value, pattern, cldr ) {
 		// Return the first found one (and set token accordingly), or null.
 		function lookup( path ) {
 			var i, re,
-				data = cldr.main( path );
+				data = properties[ path.join( "/" ) ];
+
 			for ( i in data ) {
 				re = new RegExp( "^" + data[ i ] );
 				if ( re.test( value ) ) {
@@ -75,12 +127,30 @@ return function( value, pattern, cldr ) {
 		chr = current.charAt( 0 ),
 		length = current.length;
 
+		if ( chr === "Z" ) {
+			// Z..ZZZ: same as "xxxx".
+			if ( length < 4 ) {
+				chr = "x";
+				length = 4;
+
+			// ZZZZ: same as "OOOO".
+			} else if ( length < 5 ) {
+				chr = "O";
+				length = 4;
+
+			// ZZZZZ: same as "XXXXX"
+			} else {
+				chr = "X";
+				length = 5;
+			}
+		}
+
 		switch ( chr ) {
 
 			// Era
 			case "G":
 				lookup([
-					"dates/calendars/gregorian/eras",
+					"gregorian/eras",
 					length <= 3 ? "eraAbbr" : ( length === 4 ? "eraNames" : "eraNarrow" )
 				]);
 				break;
@@ -98,17 +168,13 @@ return function( value, pattern, cldr ) {
 				}
 				break;
 
-			case "u": // Extended year. Need to be implemented.
-			case "U": // Cyclic year name. Need to be implemented.
-				throw new Error( "Not implemented" );
-
 			// Quarter
 			case "Q":
 			case "q":
 				// number l=1:{1}, l=2:{2}.
 				// lookup l=3...
 				oneDigitIfLengthOne() || twoDigitsIfLengthTwo() || lookup([
-					"dates/calendars/gregorian/quarters",
+					"gregorian/quarters",
 					chr === "Q" ? "format" : "stand-alone",
 					widths[ length - 3 ]
 				]);
@@ -120,13 +186,13 @@ return function( value, pattern, cldr ) {
 				// number l=1:{1,2}, l=2:{2}.
 				// lookup l=3...
 				oneOrTwoDigitsIfLengthOne() || twoDigitsIfLengthTwo() || lookup([
-					"dates/calendars/gregorian/months",
+					"gregorian/months",
 					chr === "M" ? "format" : "stand-alone",
 					widths[ length - 3 ]
 				]);
 				break;
 
-			// Day (see d below)
+			// Day
 			case "D":
 				// number {l,3}.
 				if ( length <= 3 ) {
@@ -140,16 +206,12 @@ return function( value, pattern, cldr ) {
 				oneDigitIfLengthOne();
 				break;
 
-			case "g+":
-				// Modified Julian day. Need to be implemented.
-				throw new Error( "Not implemented" );
-
 			// Week day
 			case "e":
 			case "c":
 				// number l=1:{1}, l=2:{2}.
 				// lookup for length >=3.
-				if( length <= 2 ) {
+				if ( length <= 2 ) {
 					oneDigitIfLengthOne() || twoDigitsIfLengthTwo();
 					break;
 				}
@@ -157,19 +219,20 @@ return function( value, pattern, cldr ) {
 			/* falls through */
 			case "E":
 				if ( length === 6 ) {
-					// Note: if short day names are not explicitly specified, abbreviated day names are used instead http://www.unicode.org/reports/tr35/tr35-dates.html#months_days_quarters_eras
+					// Note: if short day names are not explicitly specified, abbreviated day
+					// names are used instead http://www.unicode.org/reports/tr35/tr35-dates.html#months_days_quarters_eras
 					lookup([
-						"dates/calendars/gregorian/days",
+						"gregorian/days",
 						[ chr === "c" ? "stand-alone" : "format" ],
 						"short"
 					]) || lookup([
-						"dates/calendars/gregorian/days",
+						"gregorian/days",
 						[ chr === "c" ? "stand-alone" : "format" ],
 						"abbreviated"
 					]);
 				} else {
 					lookup([
-						"dates/calendars/gregorian/days",
+						"gregorian/days",
 						[ chr === "c" ? "stand-alone" : "format" ],
 						widths[ length < 3 ? 0 : length - 3 ]
 					]);
@@ -179,7 +242,7 @@ return function( value, pattern, cldr ) {
 			// Period (AM or PM)
 			case "a":
 				lookup([
-					"dates/calendars/gregorian/dayPeriods/format/wide"
+					"gregorian/dayPeriods/format/wide"
 				]);
 				break;
 
@@ -208,16 +271,44 @@ return function( value, pattern, cldr ) {
 				break;
 
 			// Zone
-			// see http://www.unicode.org/reports/tr35/tr35-dates.html#Using_Time_Zone_Names ?
-			// Need to be implemented.
 			case "z":
-			case "Z":
 			case "O":
-			case "v":
-			case "V":
+				// O: "{gmtFormat}+H;{gmtFormat}-H" or "{gmtZeroFormat}", eg. "GMT-8" or "GMT".
+				// OOOO: "{gmtFormat}{hourFormat}" or "{gmtZeroFormat}", eg. "GMT-08:00" or "GMT".
+				if ( value === properties[ "timeZoneNames/gmtZeroFormat" ] ) {
+					token.value = 0;
+					tokenRe = new RegExp( properties[ "timeZoneNames/gmtZeroFormat" ] );
+				} else {
+					tokenRe = hourFormatRe(
+						length < 4 ? "+H;-H" : properties[ "timeZoneNames/hourFormat" ],
+						properties[ "timeZoneNames/gmtFormat" ]
+					);
+					if ( !hourFormatParse( tokenRe ) ) {
+						return null;
+					}
+				}
+				break;
+
 			case "X":
+				// Same as x*, except it uses "Z" for zero offset.
+				if ( value === "Z" ) {
+					token.value = 0;
+					tokenRe = /Z/;
+					break;
+				}
+
+			/* falls through */
 			case "x":
-				throw new Error( "Not implemented" );
+				// x: hourFormat("+HH;-HH")
+				// xx or xxxx: hourFormat("+HHmm;-HHmm")
+				// xxx or xxxxx: hourFormat("+HH:mm;-HH:mm")
+				tokenRe = hourFormatRe(
+					length === 1 ? "+HH;-HH" : ( length % 2 ? "+HH:mm;-HH:mm" : "+HHmm;-HHmm" )
+				);
+				if ( !hourFormatParse( tokenRe ) ) {
+					return null;
+				}
+				break;
 
 			case "'":
 				token.type = "literal";

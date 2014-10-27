@@ -3,7 +3,7 @@
  *
  * http://github.com/jquery/globalize
  *
- * Copyright 2005, 2014 jQuery Foundation, Inc. and other contributors
+ * Copyright 2010, 2014 jQuery Foundation, Inc. and other contributors
  * Released under the MIT license
  * http://jquery.org/license
  *
@@ -15,7 +15,10 @@
 	if ( typeof define === "function" && define.amd ) {
 
 		// AMD
-		define( [ "cldr" ], factory );
+		define([
+			"cldr",
+			"cldr/event"
+		], factory );
 	} else if ( typeof exports === "object" ) {
 
 		// Node, CommonJS

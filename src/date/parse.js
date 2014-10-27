@@ -1,23 +1,29 @@
 define([
 	"./pattern-re",
 	"./start-of",
-	"./tokenizer",
-	"../util/array/every",
+	"../common/create-error/unsupported-feature",
 	"../util/date/set-date",
 	"../util/date/set-month"
-], function( datePatternRe, dateStartOf, dateTokenizer, arrayEvery, dateSetDate, dateSetMonth ) {
+], function( datePatternRe, dateStartOf, createErrorUnsupportedFeature, dateSetDate,
+	dateSetMonth ) {
 
 function outOfRange( value, low, high ) {
 	return value < low || value > high;
 }
 
 /**
- * parse
+ * parse( value, tokens, properties )
+ *
+ * @value [String] string date.
+ *
+ * @tokens [Object] tokens returned by date/tokenizer.
+ *
+ * @properties [Object] output returned by date/tokenizer-properties.
  *
  * ref: http://www.unicode.org/reports/tr35/tr35-dates.html#Date_Format_Patterns
  */
-return function( value, pattern, cldr ) {
-	var amPm, era, hour24, valid,
+return function( value, tokens, properties ) {
+	var amPm, era, hour, hour12, timezoneOffset, valid,
 		YEAR = 0,
 		MONTH = 1,
 		DAY = 2,
@@ -26,7 +32,6 @@ return function( value, pattern, cldr ) {
 		SECOND = 5,
 		MILLISECONDS = 6,
 		date = new Date(),
-		tokens = dateTokenizer( value, pattern, cldr ),
 		truncateAt = [],
 		units = [ "year", "month", "day", "hour", "minute", "second", "milliseconds" ];
 
@@ -34,7 +39,7 @@ return function( value, pattern, cldr ) {
 		return null;
 	}
 
-	valid = arrayEvery( tokens, function( token ) {
+	valid = tokens.every(function( token ) {
 		var century, chr, value, length;
 
 		if ( token.type === "literal" ) {
@@ -48,7 +53,7 @@ return function( value, pattern, cldr ) {
 		if ( chr === "j" ) {
 			// Locale preferred hHKk.
 			// http://www.unicode.org/reports/tr35/tr35-dates.html#Time_Data
-			chr = cldr.supplemental.timeData.preferred();
+			chr = properties.preferredTimeData;
 		}
 
 		switch ( chr ) {
@@ -66,7 +71,8 @@ return function( value, pattern, cldr ) {
 					if ( outOfRange( value, 0, 99 ) ) {
 						return false;
 					}
-					// mimic dojo/date/locale: choose century to apply, according to a sliding window of 80 years before and 20 years after present year.
+					// mimic dojo/date/locale: choose century to apply, according to a sliding
+					// window of 80 years before and 20 years after present year.
 					century = Math.floor( date.getFullYear() / 100 ) * 100;
 					value += century;
 					if ( value > date.getFullYear() + 20 ) {
@@ -78,9 +84,9 @@ return function( value, pattern, cldr ) {
 				break;
 
 			case "Y": // Year in "Week of Year"
-			case "u": // Extended year. Need to be implemented.
-			case "U": // Cyclic year name. Need to be implemented.
-				throw new Error( "Not implemented" );
+				throw createErrorUnsupportedFeature({
+					feature: "year pattern `" + chr + "`"
+				});
 
 			// Quarter (skip)
 			case "Q":
@@ -95,7 +101,7 @@ return function( value, pattern, cldr ) {
 				} else {
 					value = +token.value;
 				}
-				if( outOfRange( value, 1, 12 ) ) {
+				if ( outOfRange( value, 1, 12 ) ) {
 					return false;
 				}
 				dateSetMonth( date, value - 1 );
@@ -110,7 +116,7 @@ return function( value, pattern, cldr ) {
 			// Day
 			case "d":
 				value = +token.lexeme;
-				if( outOfRange( value, 1, 31 ) ) {
+				if ( outOfRange( value, 1, 31 ) ) {
 					return false;
 				}
 				dateSetDate( date, value );
@@ -119,7 +125,7 @@ return function( value, pattern, cldr ) {
 
 			case "D":
 				value = +token.lexeme;
-				if( outOfRange( value, 1, 366 ) ) {
+				if ( outOfRange( value, 1, 366 ) ) {
 					return false;
 				}
 				date.setMonth(0);
@@ -131,10 +137,6 @@ return function( value, pattern, cldr ) {
 				// Day of Week in month. eg. 2nd Wed in July.
 				// Skip
 				break;
-
-			case "g+":
-				// Modified Julian day. Need to be implemented.
-				throw new Error( "Not implemented" );
 
 			// Week day
 			case "e":
@@ -150,29 +152,42 @@ return function( value, pattern, cldr ) {
 				break;
 
 			// Hour
-			case "K": // 0-11
-				value = +token.lexeme + 1;
-
-			/* falls through */
 			case "h": // 1-12
-				value = value || +token.lexeme;
-				if( outOfRange( value, 1, 12 ) ) {
+				value = +token.lexeme;
+				if ( outOfRange( value, 1, 12 ) ) {
 					return false;
 				}
+				hour = hour12 = true;
+				date.setHours( value === 12 ? 0 : value );
+				truncateAt.push( HOUR );
+				break;
+
+			case "K": // 0-11
+				value = +token.lexeme;
+				if ( outOfRange( value, 0, 11 ) ) {
+					return false;
+				}
+				hour = hour12 = true;
 				date.setHours( value );
 				truncateAt.push( HOUR );
 				break;
 
-			case "H": // 0-23
-				value = +token.lexeme + 1;
-
-			/* falls through */
 			case "k": // 1-24
-				hour24 = true;
-				value = value || +token.lexeme;
-				if( outOfRange( value, 1, 24 ) ) {
+				value = +token.lexeme;
+				if ( outOfRange( value, 1, 24 ) ) {
 					return false;
 				}
+				hour = true;
+				date.setHours( value === 24 ? 0 : value );
+				truncateAt.push( HOUR );
+				break;
+
+			case "H": // 0-23
+				value = +token.lexeme;
+				if ( outOfRange( value, 0, 23 ) ) {
+					return false;
+				}
+				hour = true;
 				date.setHours( value );
 				truncateAt.push( HOUR );
 				break;
@@ -180,7 +195,7 @@ return function( value, pattern, cldr ) {
 			// Minute
 			case "m":
 				value = +token.lexeme;
-				if( outOfRange( value, 0, 59 ) ) {
+				if ( outOfRange( value, 0, 59 ) ) {
 					return false;
 				}
 				date.setMinutes( value );
@@ -190,7 +205,7 @@ return function( value, pattern, cldr ) {
 			// Second
 			case "s":
 				value = +token.lexeme;
-				if( outOfRange( value, 0, 59 ) ) {
+				if ( outOfRange( value, 0, 59 ) ) {
 					return false;
 				}
 				date.setSeconds( value );
@@ -210,22 +225,26 @@ return function( value, pattern, cldr ) {
 				break;
 
 			// Zone
-			// see http://www.unicode.org/reports/tr35/tr35-dates.html#Using_Time_Zone_Names ?
-			// Need to be implemented.
-			case "z":
 			case "Z":
+			case "z":
 			case "O":
-			case "v":
-			case "V":
 			case "X":
 			case "x":
-				throw new Error( "Not implemented" );
+				timezoneOffset = token.value - date.getTimezoneOffset();
+				break;
+
 		}
 
 		return true;
 	});
 
-	if ( !valid || amPm && hour24 ) {
+	if ( !valid ) {
+		return null;
+	}
+
+	// 12-hour format needs AM or PM, 24-hour format doesn't, ie. return null
+	// if amPm && !hour12 || !amPm && hour12.
+	if ( hour && !( !amPm ^ hour12 ) ) {
 		return null;
 	}
 
@@ -234,8 +253,12 @@ return function( value, pattern, cldr ) {
 		date.setFullYear( date.getFullYear() * -1 + 1 );
 	}
 
-	if ( amPm === "pm" && date.getHours() !== 12 ) {
+	if ( hour12 && amPm === "pm" ) {
 		date.setHours( date.getHours() + 12 );
+	}
+
+	if ( timezoneOffset ) {
+		date.setMinutes( date.getMinutes() + timezoneOffset );
 	}
 
 	// Truncate date at the most precise unit defined. Eg.
